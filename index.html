@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent Mint Monitor</title>
+<style>
+:root{--bg:#0d0f14;--panel:#141821;--line:#222836;--txt:#e8ebf2;--dim:#8b93a7;--ok:#35d07f;--hot:#ff8a4c;--blue:#6fa8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 -apple-system,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:26px 18px 64px}
+h1{font-size:19px;margin:0 0 4px;letter-spacing:.2px}
+.sub{color:var(--dim);font-size:12px;margin-bottom:18px}
+.sub b{color:var(--ok);font-weight:500}
+.live{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:11px;border:1px solid #1f6f4a;background:#12301f;color:var(--ok)}
+.live.off{border-color:#6b3a3a;background:#2a1515;color:#ff8f8f}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 15px;min-width:120px}
+.card b{display:block;font-size:19px;font-weight:600}
+.card span{color:var(--dim);font-size:11.5px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input{background:#0a0d12;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 12px;min-width:230px;outline:none;font-size:13px}
+input:focus{border-color:#3a4560}
+button{background:#171c26;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 13px;cursor:pointer;font-size:13px}
+button:hover{border-color:#3a4560}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th{text-align:left;font-weight:500;color:var(--dim);font-size:11.5px;padding:11px 13px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--txt)}
+td{padding:10px 13px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#191e28}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;border:1px solid #1f6f4a;background:#12301f;color:var(--ok)}
+.pill.hot{border-color:#7a4a1f;background:#2a1a0e;color:var(--hot)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.addr{color:#9fb1c9}
+.tx a{color:var(--blue);text-decoration:none}
+.tx a:hover{text-decoration:underline}
+.site{color:var(--txt);text-decoration:none;border-bottom:1px dotted #3a4560}
+.site:hover{color:var(--blue);border-bottom-color:var(--blue)}
+.scan{color:var(--dim);text-decoration:none}
+.scan:hover{color:var(--blue)}
+.scan::after{content:'↗';font-size:10px;margin-left:3px;opacity:.5}
+.dim{color:var(--dim)}
+.err{color:#ff6b6b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Agent Mint Monitor<span id="live" class="live off">连接中</span></h1>
+  <div class="sub">数据时间 <b id="gen">—</b> · 每 <span id="sec">60</span> 秒自动拉取 · 每笔均经 preview 校验（无扣款 / 无授权 / 无风险）</div>
+
+  <div class="stats">
+    <div class="card"><b id="s1">—</b><span>铸造总数</span></div>
+    <div class="card"><b id="s2">—</b><span>不同合约</span></div>
+    <div class="card"><b id="s3">—</b><span>累计 gas (BNB)</span></div>
+    <div class="card"><b id="s4">—</b><span>有二级转手的合集</span></div>
+  </div>
+
+  <div class="bar">
+    <input id="q" placeholder="搜索项目名 / 合约地址…">
+    <button id="reload">立即刷新</button>
+    <label class="dim" style="font-size:12px"><input type="checkbox" id="onlyX" style="min-width:auto;vertical-align:-2px"> 只看有二级转手</label>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th data-k="t">时间</th><th data-k="n">项目</th><th data-k="a">合约</th>
+      <th>链</th><th>价格</th><th>结果</th><th data-k="id">tokenId</th><th data-k="x">二级转账</th><th>交易</th>
+    </tr></thead>
+    <tbody id="tb"><tr><td colspan="9" style="padding:26px;text-align:center;color:#8b93a7">加载中…</td></tr></tbody>
+  </table>
+</div>
+
+<script src="config.js"></script>
+<script>
+// 依次尝试数据源：公网隧道优先，失败自动回落到同目录 data.json
+const CFG = window.APP_CONFIG || {};
+const DATA_URLS = (CFG.dataUrls && CFG.dataUrls.length) ? CFG.dataUrls : [CFG.dataUrl || "data.json", "data.json"];
+const REFRESH_MS = Number(CFG.refreshMs) || 60000;
+if (CFG.title) document.title = CFG.title;
+document.getElementById("sec").textContent = Math.round(REFRESH_MS / 1000);
+
+let ALL = [];
+let sortKey = "t";
+let sortDir = -1;
+let activeSource = "";
+
+const $ = (id) => document.getElementById(id);
+function fmtBj(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(s || "");
+  if (!m) return s;
+  return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) + 8*3600*1000)
+    .toISOString().slice(0,16).replace("T"," ");
+}const short = (a) => String(a || "").slice(0, 6) + "…" + String(a || "").slice(-4);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function render() {
+  const k = $("q").value.trim().toLowerCase();
+  const onlyX = $("onlyX").checked;
+  let rows = ALL;
+  if (k) rows = rows.filter(r => ((r.n || "") + " " + r.a).toLowerCase().includes(k));
+  if (onlyX) rows = rows.filter(r => (r.x || 0) > 0);
+  rows = rows.slice().sort((a, b) => {
+    const va = a[sortKey], vb = b[sortKey];
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb)) * sortDir;
+  });
+
+  const tb = $("tb");
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#8b93a7">没有匹配记录</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td class="dim mono">${esc(fmtBj(r.t) || "—")}</td>
+    <td>${r.s
+      ? `<a class="site" href="${esc(r.s)}" target="_blank" rel="noopener" title="${esc(r.s)}">${esc(r.n)} ↗</a>`
+      : `<a class="scan" href="https://bscscan.com/address/${esc(r.a)}" target="_blank" rel="noopener" title="查看合约 ${esc(r.a)}">${esc(r.n)}</a>`}</td>
+    <td class="mono addr" title="${esc(r.a)}">${esc(short(r.a))}</td>
+    <td class="dim" style="text-transform:uppercase;font-size:11.5px">bsc</td>
+    <td><span class="pill">免费</span></td>
+    <td><span class="pill">已打</span></td>
+    <td class="mono" style="color:#c9d3e3">${esc(r.id || "—")}</td>
+    <td>${(r.x || 0) > 0 ? '<span class="pill hot">' + r.x + '</span>' : '<span class="dim">0</span>'}</td>
+    <td class="tx mono"><a href="https://bscscan.com/tx/${esc(r.tx)}" target="_blank" rel="noopener">${esc((r.tx || "").slice(0, 10))}…</a></td>
+  </tr>`).join("");
+}
+
+async function fetchOne(url) {
+  const res = await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+async function load() {
+  const badge = $("live");
+  for (const url of DATA_URLS) {
+    try {
+      const d = await fetchOne(url);
+      if (!d || !Array.isArray(d.records)) throw new Error("bad payload");
+      ALL = d.records;
+      const st = d.stats || {};
+      $("s1").textContent = st.mints ?? ALL.length;
+      $("s2").textContent = st.contracts ?? "—";
+      $("s3").textContent = (st.gasBnb ?? 0).toFixed(6);
+      $("s4").textContent = st.active ?? "—";
+      const t = d.generatedAt ? new Date(d.generatedAt) : null;
+      $("gen").textContent = t ? t.toLocaleString("zh-CN") : "—";
+      const fresh = t && (Date.now() - t.getTime()) < 100 * 60 * 1000;
+      badge.textContent = (fresh ? "实时 · " : "缓存 · ") + (url.startsWith("http") ? new URL(url).host : "本地");
+      badge.className = "live" + (fresh ? "" : " off");
+      activeSource = url;
+      render();
+      return;
+    } catch (e) { /* try next */ }
+  }
+  badge.textContent = "数据源不可达";
+  badge.className = "live off";
+  $("tb").innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center" class="err">所有数据源都无法访问：' + esc(DATA_URLS.join(" , ")) + '</td></tr>';
+  if (ALL.length) render();
+}
+
+document.querySelectorAll("th[data-k]").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; }
+    render();
+  });
+});
+$("q").addEventListener("input", render);
+$("onlyX").addEventListener("change", render);
+$("reload").addEventListener("click", load);
+
+load();
+setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>

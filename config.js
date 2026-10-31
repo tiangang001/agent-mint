@@ -1,4 +1,4 @@
-// auto-generated 2026-10-31T05:52:46.290Z
+// auto-generated 2026-10-31T06:15:14.837Z
 window.APP_CONFIG = {
   "title": "Agent Mint Monitor",
   "dataUrls": [

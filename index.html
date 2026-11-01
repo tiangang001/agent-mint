@@ -73,9 +73,9 @@ tr:hover td{background:#191e28}
   <table>
     <thead><tr>
       <th data-k="t">时间</th><th data-k="n">项目</th><th data-k="a">合约</th>
-      <th>链</th><th>价格</th><th>结果</th><th data-k="id">tokenId</th><th data-k="x">二级转账</th><th>市场</th><th>交易</th>
+      <th>链</th><th>价格</th><th>结果</th><th data-k="id">tokenId</th><th data-k="x">二级转账</th><th>交易</th>
     </tr></thead>
-    <tbody id="tb"><tr><td colspan="10" style="padding:26px;text-align:center;color:#8b93a7">加载中…</td></tr></tbody>
+    <tbody id="tb"><tr><td colspan="9" style="padding:26px;text-align:center;color:#8b93a7">加载中…</td></tr></tbody>
   </table>
   <div id="pager" class="pager"></div>
 </div>
@@ -125,7 +125,7 @@ function render() {
 
   const tb = $("tb");
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center;color:#8b93a7">没有匹配记录</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#8b93a7">没有匹配记录</td></tr>';
     $("pager").innerHTML = "";
     return;
   }
@@ -140,7 +140,6 @@ function render() {
     <td><span class="pill">已打</span></td>
     <td class="mono" style="color:#c9d3e3">${esc(r.id || "—")}</td>
     <td>${(r.x || 0) > 0 ? '<span class="pill hot">' + r.x + '</span>' : '<span class="dim">0</span>'}</td>
-    <td class="mk">${r.el ? `<a class="scan" href="${esc(r.el)}" target="_blank" rel="noopener" title="在 Element 搜索 ${esc(r.n)}">Element ↗</a>` : '<span class="dim">—</span>'}</td>
     <td class="tx mono"><a href="https://bscscan.com/tx/${esc(r.tx)}" target="_blank" rel="noopener">${esc((r.tx || "").slice(0, 10))}…</a></td>
   </tr>`).join("");
 
@@ -202,7 +201,7 @@ async function load() {
   }
   badge.textContent = "数据源不可达";
   badge.className = "live off";
-  $("tb").innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center" class="err">所有数据源都无法访问：' + esc(DATA_URLS.join(" , ")) + '</td></tr>';
+  $("tb").innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center" class="err">所有数据源都无法访问：' + esc(DATA_URLS.join(" , ")) + '</td></tr>';
   if (ALL.length) render();
 }
 

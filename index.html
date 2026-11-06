@@ -43,6 +43,7 @@ tr:hover td{background:#191e28}
 .dim{color:var(--dim)}
 .err{color:#ff6b6b}
 .mk a{white-space:nowrap}
+.tag{display:inline-block;padding:1px 7px;margin-left:3px;border-radius:6px;font-size:10.5px;border:1px solid #2c3a55;background:#161d2a;color:#9db4d6}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 4px;font-size:12.5px}
 .pgs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .pg{background:#171c26;border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12.5px}
@@ -73,7 +74,7 @@ tr:hover td{background:#191e28}
   <table>
     <thead><tr>
       <th data-k="t">时间</th><th data-k="n">项目</th><th data-k="a">合约</th>
-      <th>链</th><th>价格</th><th>结果</th><th data-k="id">tokenId</th><th data-k="x">二级转账</th><th>交易</th>
+      <th>链</th><th>价格</th><th>结果</th><th data-k="id">tokenId</th><th data-k="x">二级转账</th><th data-k="mc">后续玩法</th><th>交易</th>
     </tr></thead>
     <tbody id="tb"><tr><td colspan="9" style="padding:26px;text-align:center;color:#8b93a7">加载中…</td></tr></tbody>
   </table>
@@ -104,6 +105,15 @@ function fmtBj(s) {
 }const short = (a) => String(a || "").slice(0, 6) + "…" + String(a || "").slice(-4);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+function mechCell(r) {
+  const parts = [];
+  if (r.cl) parts.push('<span class="pill hot">' + esc(r.cl) + '</span>');
+  if (r.ht) parts.push('<span class="pill">' + esc(r.ht) + '</span>');
+  if (r.mc && r.mc.length) parts.push(r.mc.map(x => '<span class="tag">' + esc(x) + '</span>').join(''));
+  if (r.ac) parts.push('<span class="dim" style="font-size:11px">' + esc(r.ac) + '</span>');
+  return parts.length ? parts.join(' ') : '<span class="dim">—</span>';
+}
+
 function render() {
   const k = $("q").value.trim().toLowerCase();
   const onlyX = $("onlyX").checked;
@@ -125,7 +135,7 @@ function render() {
 
   const tb = $("tb");
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#8b93a7">没有匹配记录</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center;color:#8b93a7">没有匹配记录</td></tr>';
     $("pager").innerHTML = "";
     return;
   }
@@ -140,6 +150,7 @@ function render() {
     <td><span class="pill">已打</span></td>
     <td class="mono" style="color:#c9d3e3">${esc(r.id || "—")}</td>
     <td>${(r.x || 0) > 0 ? '<span class="pill hot">' + r.x + '</span>' : '<span class="dim">0</span>'}</td>
+    <td class="mk">${mechCell(r)}</td>
     <td class="tx mono"><a href="https://bscscan.com/tx/${esc(r.tx)}" target="_blank" rel="noopener">${esc((r.tx || "").slice(0, 10))}…</a></td>
   </tr>`).join("");
 

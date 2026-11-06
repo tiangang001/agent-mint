@@ -109,6 +109,7 @@ function mechCell(r) {
   const parts = [];
   if (r.cl) parts.push('<span class="pill hot">' + esc(r.cl) + '</span>');
   if (r.ht) parts.push('<span class="pill">' + esc(r.ht) + '</span>');
+  if (r.mst) parts.push('<span class="tag">' + esc(r.mst) + '</span>');
   if (r.mc && r.mc.length) parts.push(r.mc.map(x => '<span class="tag">' + esc(x) + '</span>').join(''));
   if (r.ac) parts.push('<span class="dim" style="font-size:11px">' + esc(r.ac) + '</span>');
   return parts.length ? parts.join(' ') : '<span class="dim">—</span>';

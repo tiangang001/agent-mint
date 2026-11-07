@@ -63,6 +63,8 @@ tr:hover td{background:#191e28}
     <div class="card"><b id="s2">—</b><span>不同合约</span></div>
     <div class="card"><b id="s3">—</b><span>累计 gas (BNB)</span></div>
     <div class="card"><b id="s4">—</b><span>有二级转手的合集</span></div>
+    <div class="card"><b id="pv">—</b><span>页面访问次数</span></div>
+    <div class="card"><b id="uv">—</b><span>独立访客（浏览器）</span></div>
   </div>
 
   <div class="bar">
@@ -230,6 +232,31 @@ $("reload").addEventListener("click", load);
 
 load();
 setInterval(load, REFRESH_MS);
+</script>
+
+<script>
+/* 轻量访问统计：abacus 公共计数器（无需账号）。每次打开记一次，localStorage 标记独立访客 */
+(function () {
+  const NS = "tj-agentmint-7f3a";
+  const api = (k) => "https://abacus.jasoncameron.dev/hit/" + NS + "/" + k;
+  const get = (k) => "https://abacus.jasoncameron.dev/get/" + NS + "/" + k;
+  try {
+    fetch(api("pageviews")).then(r => r.json()).then(d => {
+      if (d && typeof d.value === "number") document.getElementById("pv").textContent = d.value.toLocaleString();
+    }).catch(() => {});
+    const seen = localStorage.getItem("am_uv");
+    if (!seen) {
+      localStorage.setItem("am_uv", "1");
+      fetch(api("visitors")).then(r => r.json()).then(d => {
+        if (d && typeof d.value === "number") document.getElementById("uv").textContent = d.value.toLocaleString();
+      }).catch(() => {});
+    } else {
+      fetch(get("visitors")).then(r => r.json()).then(d => {
+        if (d && typeof d.value === "number") document.getElementById("uv").textContent = d.value.toLocaleString();
+      }).catch(() => {});
+    }
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
